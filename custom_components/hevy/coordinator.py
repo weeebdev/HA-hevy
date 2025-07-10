@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -69,7 +69,7 @@ class HevyDataUpdateCoordinator(DataUpdateCoordinator):
             for workout in workouts_data.get("workouts", []):
                 total_workout_count += 1
                 workout_id = workout["id"]
-                workout_start_time = datetime.fromtimestamp(workout["start_time"])
+                workout_start_time = datetime.fromtimestamp(workout["start_time"], tz=timezone.utc)
                 workout_name = workout["name"]
 
                 workout_date = workout_start_time.date()
