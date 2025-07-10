@@ -30,7 +30,7 @@ class HevyApiClientAuthenticationError(
 def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
     """Verify that the response is valid."""
     if response.status in (401, 403):
-        msg = "Invalid API key"
+        msg = "Invalid authentication token"
         raise HevyApiClientAuthenticationError(
             msg,
         )
@@ -42,32 +42,57 @@ class HevyApiClient:
 
     def __init__(
         self,
-        api_key: str,
+        auth_token: str,
+        username: str,
         session: aiohttp.ClientSession,
+        x_api_key: str = "shelobs_hevy_web",
     ) -> None:
-        """Initialize Hevy API Client."""
-        self._api_key = api_key
+        """Initialize Hevy API Client.
+        
+        Args:
+            auth_token: The authentication token for the Hevy API.
+            username: The Hevy username.
+            session: The aiohttp ClientSession.
+            x_api_key: The x-api-key value to use for API requests.
+        """
+        self._auth_token = auth_token
+        self._username = username
         self._session = session
         self._headers = {
-            "accept": "application/json",
-            "api-key": api_key,
+            "Accept": "application/json, text/plain, */*",
+            "Hevy-Platform": "web",
+            "auth-token": auth_token,
+            "x-api-key": x_api_key,
         }
 
     async def async_get_workout_count(self) -> dict[str, Any]:
-        """Get workout count from the API."""
+        """Get workout count.
+
+        Returns:
+            The JSON response from the API containing the workout count.
+        """
         return await self._api_wrapper(
             method="get",
-            url=f"{BASE_URL}/workouts/count",
+            url=f"{BASE_URL}/workout_count",
+            params={},
         )
 
     async def async_get_workouts(
-        self, page: int = 1, page_size: int = DEFAULT_WORKOUTS_COUNT
+        self, limit: int = DEFAULT_WORKOUTS_COUNT, offset: int = 0
     ) -> dict[str, Any]:
-        """Get workouts from the API."""
+        """Get workouts.
+
+        Args:
+            limit: The number of workouts to get.
+            offset: The offset to start from.
+
+        Returns:
+            The JSON response from the API.
+        """
         return await self._api_wrapper(
             method="get",
-            url=f"{BASE_URL}/workouts",
-            params={"page": page, "pageSize": page_size},
+            url=f"{BASE_URL}/user_workouts_paged",
+            params={"username": self._username, "limit": limit, "offset": offset},
         )
 
     async def _api_wrapper(

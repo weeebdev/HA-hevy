@@ -44,15 +44,13 @@ class HevyDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Any]:
         """Update data via library."""
         try:
-            # Get basic workout count
-            workout_count_data = (
-                await self.config_entry.runtime_data.client.async_get_workout_count()
-            )
-
-            # Get detailed workouts
+            # Get workout count
+            workout_count_data = await self.config_entry.runtime_data.client.async_get_workout_count()
+            
+            # Get workouts data
             workouts_data = (
                 await self.config_entry.runtime_data.client.async_get_workouts(
-                    page=1, page_size=DEFAULT_WORKOUTS_COUNT
+                    limit=DEFAULT_WORKOUTS_COUNT, offset=0
                 )
             )
 
@@ -66,13 +64,13 @@ class HevyDataUpdateCoordinator(DataUpdateCoordinator):
             year_count = 0
 
             today = datetime.now().date()
+            total_workout_count = 0
 
             for workout in workouts_data.get("workouts", []):
+                total_workout_count += 1
                 workout_id = workout["id"]
-                workout_start_time = datetime.fromisoformat(
-                    workout["start_time"].replace("Z", "+00:00")
-                )
-                workout_title = workout["title"]
+                workout_start_time = datetime.fromtimestamp(workout["start_time"])
+                workout_name = workout["name"]
 
                 workout_date = workout_start_time.date()
                 if workout_date == today:
@@ -111,20 +109,23 @@ class HevyDataUpdateCoordinator(DataUpdateCoordinator):
                             default=0,
                         ),
                     }
-                    exercises_data[f"{exercise['index']}_{exercise_title}"] = (
-                        exercise_data
-                    )
+                    # Using exercise id as key instead of index_title
+                    exercises_data[exercise["id"]] = exercise_data
 
                 processed_workouts[workout_id] = {
                     "id": workout_id,
-                    "title": workout_title,
+                    "title": workout_name,
                     "start_time": workout_start_time,
                     "exercises": exercises_data,
+                    "estimated_volume_kg": workout.get("estimated_volume_kg", 0),
                 }
 
+            # Get total workout count from the dedicated API endpoint
+            total_workout_count = workout_count_data.get("workout_count", 0)
+            
             # Combine data
             return {
-                "workout_count": workout_count_data.get("workout_count", 0),
+                "workout_count": total_workout_count,  # Use the dedicated workout_count endpoint
                 "workouts": processed_workouts,
                 "name": self.name,
                 "today_count": today_count,

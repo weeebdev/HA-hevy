@@ -8,7 +8,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.loader import async_get_integration
 
 from .api import HevyApiClient
-from .const import CONF_API_KEY, CONF_NAME, DEFAULT_SCAN_INTERVAL
+from .const import CONF_AUTH_TOKEN, CONF_USERNAME, CONF_NAME, CONF_X_API_KEY, DEFAULT_X_API_KEY, DEFAULT_SCAN_INTERVAL
 from .coordinator import HevyDataUpdateCoordinator
 from .data import HevyData
 
@@ -35,10 +35,15 @@ async def async_setup_entry(
         name=entry.data[CONF_NAME],
         update_interval=timedelta(minutes=DEFAULT_SCAN_INTERVAL),
     )
+    # Use provided x_api_key or default if not present
+    x_api_key = entry.data.get(CONF_X_API_KEY, DEFAULT_X_API_KEY)
+    
     entry.runtime_data = HevyData(
         client=HevyApiClient(
-            api_key=entry.data[CONF_API_KEY],
+            auth_token=entry.data[CONF_AUTH_TOKEN],
+            username=entry.data[CONF_USERNAME],
             session=async_get_clientsession(hass),
+            x_api_key=x_api_key,
         ),
         integration=await async_get_integration(hass, entry.domain),
         coordinator=coordinator,

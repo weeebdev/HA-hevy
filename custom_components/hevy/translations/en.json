@@ -2,20 +2,21 @@
     "config": {
         "step": {
             "user": {
-                "description": "Enter your Hevy API key and name to connect to your account.",
+                "description": "Enter your Hevy authentication information to connect to your account.",
                 "data": {
-                    "api_key": "API Key",
+                    "auth_token": "Authentication Token",
+                    "username": "Username",
                     "name": "Name"
                 }
             }
         },
         "error": {
-            "auth": "API key is invalid.",
+            "auth": "Authentication failed. Please check your token and username.",
             "connection": "Could not connect to the Hevy API.",
             "unknown": "An unknown error occurred."
         },
         "abort": {
-            "already_configured": "This API key is already configured."
+            "already_configured": "This Hevy account is already configured."
         }
     },
     "entity": {

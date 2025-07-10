@@ -13,7 +13,7 @@ from .api import (
     HevyApiClientCommunicationError,
     HevyApiClientError,
 )
-from .const import CONF_API_KEY, CONF_NAME, DOMAIN, LOGGER
+from .const import CONF_AUTH_TOKEN, CONF_USERNAME, CONF_NAME, CONF_X_API_KEY, DEFAULT_X_API_KEY, DOMAIN, LOGGER
 
 
 class HevyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
@@ -28,9 +28,15 @@ class HevyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle a flow initialized by the user."""
         _errors = {}
         if user_input is not None:
+            # Set default x_api_key if not provided
+            if CONF_X_API_KEY not in user_input or not user_input[CONF_X_API_KEY]:
+                user_input[CONF_X_API_KEY] = DEFAULT_X_API_KEY
+                
             try:
                 await self._test_credentials(
-                    api_key=user_input[CONF_API_KEY],
+                    auth_token=user_input[CONF_AUTH_TOKEN],
+                    username=user_input[CONF_USERNAME],
+                    x_api_key=user_input[CONF_X_API_KEY],
                 )
             except HevyApiClientAuthenticationError as exception:
                 LOGGER.warning(exception)
@@ -42,7 +48,7 @@ class HevyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 LOGGER.exception(exception)
                 _errors["base"] = "unknown"
             else:
-                await self.async_set_unique_id(user_input[CONF_API_KEY])
+                await self.async_set_unique_id(f"{user_input[CONF_USERNAME]}_{user_input[CONF_AUTH_TOKEN][:8]}")
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title=f"Hevy - {user_input[CONF_NAME]}",
@@ -62,11 +68,27 @@ class HevyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         ),
                     ),
                     vol.Required(
-                        CONF_API_KEY,
-                        default=(user_input or {}).get(CONF_API_KEY, vol.UNDEFINED),
+                        CONF_USERNAME,
+                        default=(user_input or {}).get(CONF_USERNAME, vol.UNDEFINED),
+                    ): selector.TextSelector(
+                        selector.TextSelectorConfig(
+                            type=selector.TextSelectorType.TEXT,
+                        ),
+                    ),
+                    vol.Required(
+                        CONF_AUTH_TOKEN,
+                        default=(user_input or {}).get(CONF_AUTH_TOKEN, vol.UNDEFINED),
                     ): selector.TextSelector(
                         selector.TextSelectorConfig(
                             type=selector.TextSelectorType.PASSWORD,
+                        ),
+                    ),
+                    vol.Optional(
+                        CONF_X_API_KEY,
+                        default=(user_input or {}).get(CONF_X_API_KEY, DEFAULT_X_API_KEY),
+                    ): selector.TextSelector(
+                        selector.TextSelectorConfig(
+                            type=selector.TextSelectorType.TEXT,
                         ),
                     ),
                 },
@@ -74,10 +96,12 @@ class HevyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors=_errors,
         )
 
-    async def _test_credentials(self, api_key: str) -> None:
-        """Validate API key."""
+    async def _test_credentials(self, auth_token: str, username: str, x_api_key: str = DEFAULT_X_API_KEY) -> None:
+        """Validate authentication credentials."""
         client = HevyApiClient(
-            api_key=api_key,
+            auth_token=auth_token,
+            username=username,
             session=async_create_clientsession(self.hass),
+            x_api_key=x_api_key,
         )
-        await client.async_get_workout_count()
+        await client.async_get_workouts()
